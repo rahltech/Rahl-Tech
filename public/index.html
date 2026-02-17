@@ -22,12 +22,49 @@
             <h1>RAHLXMD</h1>
             <p class="subtitle">Secure Web Pairing</p>
 
-            <input type="text" placeholder="Enter Phone Number">
-            <button>Generate Code</button>
+            <input id="phone" type="text" placeholder="254712345678">
 
-            <p class="footer">Secure • Private • Dominant</p>
+            <button type="button" onclick="generatePairing()">
+                Generate Code
+            </button>
+
+            <p id="result" class="footer">
+                Secure • Private • Dominant
+            </p>
         </div>
     </div>
 
+<script>
+async function generatePairing() {
+    console.log("Button clicked");
+
+    const phone = document.getElementById("phone").value;
+
+    if (!phone) {
+        alert("Enter phone number");
+        return;
+    }
+
+    try {
+        const res = await fetch("/pair", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ phone })
+        });
+
+        const data = await res.json();
+
+        document.getElementById("result").innerText =
+            data.pairingCode || data.error;
+
+    } catch (err) {
+        console.error(err);
+        alert("Server error");
+    }
+}
+</script>
+
 </body>
-</html>
+    </html>
