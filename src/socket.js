@@ -1,37 +1,51 @@
 const makeWASocket = require("@whiskeysockets/baileys").default;
-const { useMultiFileAuthState, fetchLatestBaileysVersion } = require("@whiskeysockets/baileys");
-const fs = require("fs");
+const {
+    useMultiFileAuthState,
+    fetchLatestBaileysVersion,
+    Browsers,
+    DisconnectReason
+} = require("@whiskeysockets/baileys");
+
 const path = require("path");
-const { encodeBase44 } = require("../base44");
 
 async function createSocket(sessionId) {
-const sessionPath = path.join(__dirname, "../sessions", sessionId);
+    const sessionPath = path.join(__dirname, "../sessions", sessionId);
 
-const { state, saveCreds } = await useMultiFileAuthState(sessionPath);  
-const { version } = await fetchLatestBaileysVersion();  
+    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+    const { version } = await fetchLatestBaileysVersion();
 
-const sock = makeWASocket({  
-    version,  
-    auth: state,  
-});  
+    const sock = makeWASocket({
+        version,
+        auth: state,
+        printQRInTerminal: false,
+        browser: Browsers.macOS("Rahlxmd"),
+        generateHighQualityLinkPreview: true,
+        syncFullHistory: false
+    });
 
-sock.ev.on("creds.update", saveCreds);  
+    sock.ev.on("creds.update", saveCreds);
 
-sock.ev.on("connection.update", async (update) => {  
-    const { connection } = update;  
+    sock.ev.on("connection.update", (update) => {
+        const { connection, lastDisconnect } = update;
 
-    if (connection === "open") {  
-        console.log("Rahlxmd Connected");  
+        console.log("Connection state:", connection);
 
-        const creds = fs.readFileSync(path.join(sessionPath, "creds.json"));  
-        const base44Session = encodeBase44(creds);  
+        if (connection === "open") {
+            console.log("✅ WhatsApp Connected");
+        }
 
-        console.log("Base44 Session:", base44Session);  
-    }  
-});  
+        if (connection === "close") {
+            const code = lastDisconnect?.error?.output?.statusCode;
 
-return sock;
+            console.log("❌ Connection closed. Code:", code);
 
+            if (code === DisconnectReason.loggedOut) {
+                console.log("Logged out from WhatsApp");
+            }
+        }
+    });
+
+    return sock;
 }
 
 module.exports = { createSocket };
