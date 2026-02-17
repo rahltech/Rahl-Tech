@@ -12,33 +12,38 @@ async function initiatePairing(phone) {
             throw new Error("Phone number is required");
         }
 
-        // Remove + if user sends it
+        // Remove + and spaces
         phone = phone.replace(/\+/g, "").trim();
 
         const token = generateToken();
-        const brandedCode = `${config.BRAND_PREFIX}-${token}`;
         const sessionId = uuidv4();
 
         console.log("🔐 Creating socket for session:", sessionId);
 
         const sock = await createSocket(sessionId);
 
-        // Small delay to allow socket to initialize properly
+        // Wait a few seconds for socket to initialize properly
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
         console.log("📲 Requesting pairing code for:", phone);
 
         const realCode = await sock.requestPairingCode(phone);
 
-        console.log("✅ Pairing code generated");
+        if (!realCode) {
+            throw new Error("No pairing code received from WhatsApp");
+        }
 
+        console.log("✅ Pairing code generated:", realCode);
+
+        // Store session details
         storeSession(token, {
             realCode,
             sessionId,
             sock
         });
 
-        return brandedCode;
+        // ✅ IMPORTANT: Return the REAL WhatsApp pairing code
+        return realCode;
 
     } catch (error) {
         console.error("❌ Pairing error:", error);
