@@ -1,5 +1,4 @@
 const { v4: uuidv4 } = require("uuid");
-
 const { generateToken } = require("./src/tokenManager");
 const { createSocket } = require("./src/socket");
 const { storeSession } = require("./src/sessionManager");
@@ -20,25 +19,26 @@ async function initiatePairing(phone) {
 
         const sock = await createSocket(sessionId);
 
-        // 🔥 WAIT for socket to reach "connecting" state
+        // ✅ WAIT for socket to reach "open"
         await new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
-                reject(new Error("Socket initialization timeout"));
-            }, 15000); // 15 seconds safety
+                reject(new Error("Socket open timeout"));
+            }, 20000); // 20 seconds safety
 
             sock.ev.on("connection.update", (update) => {
                 const { connection } = update;
 
                 console.log("Connection state:", connection);
 
-                if (connection === "connecting") {
+                if (connection === "open") {
                     clearTimeout(timeout);
+                    console.log("✅ Socket fully connected");
                     resolve();
                 }
 
                 if (connection === "close") {
                     clearTimeout(timeout);
-                    reject(new Error("Connection closed before pairing"));
+                    reject(new Error("Connection closed before open"));
                 }
             });
         });
@@ -63,7 +63,7 @@ async function initiatePairing(phone) {
 
     } catch (error) {
         console.error("❌ Pairing error:", error);
-        throw new Error("Pairing failed");
+        throw error;
     }
 }
 
