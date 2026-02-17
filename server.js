@@ -6,6 +6,7 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys"
 import P from "pino"
 import fs from "fs"
+import QRCode from "qrcode"
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -17,16 +18,19 @@ const activeSockets = {}
 
 app.post("/pair", async (req, res) => {
   try {
-    let { phone } = req.body
+    let { phone, method } = req.body
+    method = method || "code"
 
-    if (!phone) {
-      return res.json({ error: "Phone number required" })
+    if (method === "code" && !phone) {
+      return res.json({ error: "Phone number required for pairing code" })
     }
 
-    // Clean number (remove spaces, +, etc)
-    phone = phone.replace(/\D/g, "")
+    if (phone) {
+      phone = phone.replace(/\D/g, "")
+    }
 
-    const sessionPath = `./sessions/${phone}`
+    const sessionId = phone || Date.now().toString()
+    const sessionPath = `./sessions/${sessionId}`
 
     if (!fs.existsSync("./sessions")) {
       fs.mkdirSync("./sessions")
@@ -42,30 +46,46 @@ app.post("/pair", async (req, res) => {
       browser: ["Rahlxmd", "Chrome", "1.0.0"]
     })
 
-    activeSockets[phone] = sock
+    activeSockets[sessionId] = sock
 
     sock.ev.on("creds.update", saveCreds)
 
-    sock.ev.on("connection.update", (update) => {
-      const { connection, lastDisconnect } = update
+    sock.ev.on("connection.update", async (update) => {
+      const { connection, qr, lastDisconnect } = update
+
+      // ✅ REAL QR IMAGE
+      if (method === "qr" && qr) {
+        const qrImage = await QRCode.toDataURL(qr)
+
+        return res.json({
+          type: "qr",
+          image: qrImage
+        })
+      }
 
       if (connection === "open") {
-        console.log(`✅ ${phone} connected`)
+        console.log(`✅ ${sessionId} connected`)
       }
 
       if (connection === "close") {
         const statusCode = lastDisconnect?.error?.output?.statusCode
-        console.log(`❌ ${phone} closed:`, statusCode)
+        console.log(`❌ ${sessionId} closed:`, statusCode)
 
         if (statusCode !== DisconnectReason.loggedOut) {
-          delete activeSockets[phone]
+          delete activeSockets[sessionId]
         }
       }
     })
 
-    const pairingCode = await sock.requestPairingCode(phone)
+    // ✅ CODE METHOD
+    if (method === "code") {
+      const pairingCode = await sock.requestPairingCode(phone)
 
-    return res.json({ pairingCode })
+      return res.json({
+        type: "code",
+        code: pairingCode
+      })
+    }
 
   } catch (err) {
     console.error(err)
