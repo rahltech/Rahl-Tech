@@ -1,51 +1,56 @@
-const makeWASocket = require("@whiskeysockets/baileys").default;
-const {
-    useMultiFileAuthState,
-    fetchLatestBaileysVersion,
-    Browsers,
-    DisconnectReason
-} = require("@whiskeysockets/baileys");
+const { makeWASocket, useMultiFileAuthState } = require("@whiskeysockets/baileys");
+const QRCode = require("qrcode");
 
-const path = require("path");
+const sessions = {};
 
-async function createSocket(sessionId) {
-    const sessionPath = path.join(__dirname, "../sessions", sessionId);
+async function createSession(sessionId) {
+    if (sessions[sessionId]) {
+        return sessions[sessionId];
+    }
 
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-    const { version } = await fetchLatestBaileysVersion();
+    const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${sessionId}`);
 
     const sock = makeWASocket({
-        version,
         auth: state,
         printQRInTerminal: false,
-        browser: Browsers.macOS("Rahlxmd"),
-        generateHighQualityLinkPreview: true,
-        syncFullHistory: false
+        browser: ['RAHLXMD', 'Chrome', '1.0.0'],
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 10000
     });
+
+    sessions[sessionId] = {
+        sock,
+        qr: null,
+        connected: false
+    };
 
     sock.ev.on("creds.update", saveCreds);
 
-    sock.ev.on("connection.update", (update) => {
-        const { connection, lastDisconnect } = update;
+    sock.ev.on("connection.update", async (update) => {
+        const { connection, qr } = update;
 
-        console.log("Connection state:", connection);
+        if (qr) {
+            sessions[sessionId].qr = await QRCode.toDataURL(qr);
+        }
 
         if (connection === "open") {
-            console.log("✅ WhatsApp Connected");
+            sessions[sessionId].connected = true;
+            sessions[sessionId].qr = null;
+            console.log(`✅ ${sessionId} connected`);
         }
 
         if (connection === "close") {
-            const code = lastDisconnect?.error?.output?.statusCode;
-
-            console.log("❌ Connection closed. Code:", code);
-
-            if (code === DisconnectReason.loggedOut) {
-                console.log("Logged out from WhatsApp");
-            }
+            sessions[sessionId].connected = false;
+            console.log(`❌ ${sessionId} closed`);
         }
     });
 
-    return sock;
+    return sessions[sessionId];
 }
 
-module.exports = { createSocket };
+function getSession(sessionId) {
+    return sessions[sessionId];
+}
+
+module.exports = { createSession, getSession };
