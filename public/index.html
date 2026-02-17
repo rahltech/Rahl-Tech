@@ -3,26 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <title>Rahlxmd Web Pairing</title>
-    <link rel="stylesheet" href="/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <!-- Background Video -->
-    <video autoplay muted loop playsinline class="bg-video">
+    <video autoplay muted loop playsinline preload="auto" id="bgVideo">
         <source src="/857195-hd_1280_720_25fps.mp4" type="video/mp4">
-        Your browser does not support the video tag.
+        Your browser does not support HTML5 video.
     </video>
 
     <!-- Dark Overlay -->
     <div class="overlay"></div>
 
-    <!-- Center Content -->
+    <!-- Main Content -->
     <div class="container">
         <div class="card">
             <h1>RAHLXMD</h1>
             <p class="subtitle">Secure Web Pairing</p>
 
-            <input type="text" placeholder="Enter Phone Number" />
+            <input type="text" placeholder="Enter Phone Number">
             <button>Generate Code</button>
 
             <p class="footer">Secure • Private • Dominant</p>
