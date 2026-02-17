@@ -1,20 +1,89 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Rahlxmd Pairing</title>
+    <meta charset="UTF-8">
+    <title>Rahlxmd Web Pairing</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+<!-- ===== INTRO ANIMATION ===== -->
+<div id="intro">
+    <div class="plains"></div>
+    <div class="rider"></div>
+    <h1 class="lord-text">LORD RAHL</h1>
+
+    <audio id="lionRoar" preload="auto">
+        <source src="https://www.soundjay.com/animal/lion-roar-01.mp3" type="audio/mpeg">
+    </audio>
+</div>
+
+<!-- ===== MAIN CONTENT (YOUR SITE) ===== -->
+<div id="main-content">
+
     <div class="container">
-        <h1>Rahlxmd Web Pairing</h1>
-
+        <h2>Rahlxmd Web Pairing</h2>
         <input type="text" id="phone" placeholder="Enter phone number">
-        <button onclick="pair()">Generate Code</button>
-
-        <h2 id="result"></h2>
+        <button onclick="generateCode()">Generate Code</button>
+        <p id="result"></p>
     </div>
 
-    <script src="app.js"></script>
+</div>
+
+<script>
+    // Intro sequence timing
+    window.onload = function() {
+
+        const roar = document.getElementById("lionRoar");
+        const intro = document.getElementById("intro");
+        const main = document.getElementById("main-content");
+
+        // Play roar when text appears
+        setTimeout(() => {
+            roar.play();
+            document.body.classList.add("shake");
+        }, 4500);
+
+        // End intro
+        setTimeout(() => {
+            intro.style.opacity = "0";
+            intro.style.transition = "opacity 1.5s ease";
+
+            setTimeout(() => {
+                intro.style.display = "none";
+                main.style.display = "flex";
+            }, 1500);
+
+        }, 7000);
+    };
+
+    // Pairing request
+    async function generateCode() {
+        const phone = document.getElementById("phone").value;
+        const result = document.getElementById("result");
+
+        result.innerText = "Generating...";
+
+        try {
+            const res = await fetch("/pair", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone })
+            });
+
+            const data = await res.json();
+
+            if (data.pairing_code) {
+                result.innerText = "Pairing Code: " + data.pairing_code;
+            } else {
+                result.innerText = "Error: " + (data.error || "Unknown error");
+            }
+
+        } catch (err) {
+            result.innerText = "Error generating code";
+        }
+    }
+</script>
+
 </body>
-</html>
+    </html>
