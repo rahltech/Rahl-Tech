@@ -4,15 +4,13 @@ const { generateToken } = require("./src/tokenManager");
 const { createSocket } = require("./src/socket");
 const { storeSession } = require("./src/sessionManager");
 
-const config = require("./config");
-
 async function initiatePairing(phone) {
     try {
         if (!phone) {
             throw new Error("Phone number is required");
         }
 
-        // Remove + and spaces
+        // Clean phone number
         phone = phone.replace(/\+/g, "").trim();
 
         const token = generateToken();
@@ -22,27 +20,45 @@ async function initiatePairing(phone) {
 
         const sock = await createSocket(sessionId);
 
-        // Wait a few seconds for socket to initialize properly
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        // 🔥 WAIT for socket to reach "connecting" state
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error("Socket initialization timeout"));
+            }, 15000); // 15 seconds safety
+
+            sock.ev.on("connection.update", (update) => {
+                const { connection } = update;
+
+                console.log("Connection state:", connection);
+
+                if (connection === "connecting") {
+                    clearTimeout(timeout);
+                    resolve();
+                }
+
+                if (connection === "close") {
+                    clearTimeout(timeout);
+                    reject(new Error("Connection closed before pairing"));
+                }
+            });
+        });
 
         console.log("📲 Requesting pairing code for:", phone);
 
         const realCode = await sock.requestPairingCode(phone);
 
         if (!realCode) {
-            throw new Error("No pairing code received from WhatsApp");
+            throw new Error("Pairing code returned undefined");
         }
 
         console.log("✅ Pairing code generated:", realCode);
 
-        // Store session details
         storeSession(token, {
             realCode,
             sessionId,
             sock
         });
 
-        // ✅ IMPORTANT: Return the REAL WhatsApp pairing code
         return realCode;
 
     } catch (error) {
