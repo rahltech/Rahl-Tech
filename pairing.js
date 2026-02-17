@@ -1,11 +1,12 @@
 const { v4: uuidv4 } = require("uuid");
-const { generateToken } = require("./tokenManager");
-const { createSocket } = require("./socket");
-const { storeSession } = require("./sessionManager");
-const config = require("../config");
+
+const { generateToken } = require("./src/tokenManager");
+const { createSocket } = require("./src/socket");
+const { storeSession } = require("./src/sessionManager");
+
+const config = require("./config");
 
 async function initiatePairing(phone) {
-
     const token = generateToken();
     const brandedCode = `${config.BRAND_PREFIX}-${token}`;
     const sessionId = uuidv4();
