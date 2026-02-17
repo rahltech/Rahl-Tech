@@ -11,15 +11,25 @@ import express from "express"
 const app = express()
 const PORT = process.env.PORT || 3000
 
-// ✅ Auto delete session folder every restart
-if (fs.existsSync("./session")) {
-  fs.rmSync("./session", { recursive: true, force: true })
-  console.log("🗑 Old session deleted")
-}
+let latestPairingCode = null
 
-// Simple route so Render knows server is alive
+// 🔥 OPTIONAL: clear session on start (uncomment if needed)
+// if (fs.existsSync("./session")) {
+//   fs.rmSync("./session", { recursive: true, force: true })
+//   console.log("🗑 Old session deleted")
+// }
+
 app.get("/", (req, res) => {
   res.send("WhatsApp Bot Running ✅")
+})
+
+// 🔥 API route to send pairing code to frontend
+app.get("/pair", (req, res) => {
+  if (!latestPairingCode) {
+    return res.json({ status: "waiting", code: null })
+  }
+
+  res.json({ status: "ready", code: latestPairingCode })
 })
 
 app.listen(PORT, () => {
@@ -37,8 +47,8 @@ async function startBot() {
     const sock = makeWASocket({
       version,
       auth: state,
-      printQRInTerminal: false,
-      logger: P({ level: "silent" })
+      logger: P({ level: "silent" }),
+      browser: ["Render Bot", "Chrome", "1.0.0"]
     })
 
     sock.ev.on("creds.update", saveCreds)
@@ -46,36 +56,42 @@ async function startBot() {
     sock.ev.on("connection.update", async (update) => {
       const { connection, lastDisconnect } = update
 
+      if (connection === "connecting") {
+        console.log("🔄 Connecting...")
+      }
+
       if (connection === "open") {
         console.log("✅ Connected to WhatsApp!")
+        latestPairingCode = null
       }
 
       if (connection === "close") {
         const statusCode = lastDisconnect?.error?.output?.statusCode
-
         console.log("❌ Connection closed:", statusCode)
 
         if (statusCode !== DisconnectReason.loggedOut) {
-          console.log("🔄 Reconnecting...")
+          console.log("🔁 Reconnecting...")
           startBot()
         } else {
-          console.log("🚫 Logged out. Delete session and redeploy.")
+          console.log("🚫 Logged out. Delete session folder and redeploy.")
+        }
+      }
+
+      // ✅ REQUEST PAIRING AT CORRECT TIME
+      if (connection === "connecting" && !sock.authState.creds.registered) {
+        try {
+          const code = await sock.requestPairingCode(process.env.NUMBER)
+
+          latestPairingCode = code
+
+          console.log("🔑 Pairing Code:", code)
+        } catch (err) {
+          console.log("❌ Pairing error:", err)
         }
       }
     })
 
-    // 🔥 REQUEST PAIRING CODE
-    const phoneNumber = process.env.NUMBER
-
-    if (!phoneNumber) {
-      console.log("❌ NUMBER not set in environment variables")
-      return
-    }
-
-    const code = await sock.requestPairingCode(phoneNumber)
-    console.log("🔑 Pairing Code:", code)
-
   } catch (err) {
-    console.log("❌ Pairing error:", err)
+    console.log("❌ Fatal Error:", err)
   }
-        }
+                      }
