@@ -7,50 +7,43 @@ const { storeSession } = require("./src/sessionManager");
 const config = require("./config");
 
 async function initiatePairing(phone) {
-    const token = generateToken();
-    const brandedCode = `${config.BRAND_PREFIX}-${token}`;
-    const sessionId = uuidv4();
+    try {
+        if (!phone) {
+            throw new Error("Phone number is required");
+        }
 
-    const sock = await createSocket(sessionId);
+        // Remove + if user sends it
+        phone = phone.replace(/\+/g, "").trim();
 
-    let realCode;
+        const token = generateToken();
+        const brandedCode = `${config.BRAND_PREFIX}-${token}`;
+        const sessionId = uuidv4();
 
-    await new Promise((resolve, reject) => {
+        console.log("🔐 Creating socket for session:", sessionId);
 
-        const timeout = setTimeout(() => {
-            reject(new Error("Pairing timeout"));
-        }, 20000); // 20 sec safety
+        const sock = await createSocket(sessionId);
 
-        sock.ev.on("connection.update", async (update) => {
-            const { connection } = update;
+        // Small delay to allow socket to initialize properly
+        await new Promise((resolve) => setTimeout(resolve, 3000));
 
-            console.log("Connection state:", connection);
+        console.log("📲 Requesting pairing code for:", phone);
 
-            if (connection === "connecting") {
-                try {
-                    realCode = await sock.requestPairingCode(phone);
-                    clearTimeout(timeout);
-                    resolve();
-                } catch (err) {
-                    clearTimeout(timeout);
-                    reject(err);
-                }
-            }
+        const realCode = await sock.requestPairingCode(phone);
 
-            if (connection === "close") {
-                clearTimeout(timeout);
-                reject(new Error("Connection closed"));
-            }
+        console.log("✅ Pairing code generated");
+
+        storeSession(token, {
+            realCode,
+            sessionId,
+            sock
         });
-    });
 
-    storeSession(token, {
-        realCode,
-        sessionId,
-        sock
-    });
+        return brandedCode;
 
-    return brandedCode;
+    } catch (error) {
+        console.error("❌ Pairing error:", error);
+        throw new Error("Pairing failed");
+    }
 }
 
 module.exports = { initiatePairing };
