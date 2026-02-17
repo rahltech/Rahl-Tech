@@ -7,83 +7,94 @@
 </head>
 <body>
 
-<!-- ===== INTRO ANIMATION ===== -->
+<!-- ===== INTRO ===== -->
 <div id="intro">
-    <div class="plains"></div>
-    <div class="rider"></div>
+
+    <div class="sky"></div>
+    <div class="ground"></div>
+
+    <!-- Horse SVG -->
+    <div class="rider">
+        <svg viewBox="0 0 512 512" width="180">
+            <path fill="black" d="M96 352c0-32 32-64 64-64s64 32 64 64-32 64-64 64-64-32-64-64zm256-128c-16-32-64-64-96-64-32 0-48 16-64 32l-32 32c-16 16-32 32-32 64 0 32 16 64 32 96l16 32h32l-8-40 24-16 40 56h32l-24-64 40-24 24 48h32l-16-64 24-32c16-24 16-48 0-80z"/>
+        </svg>
+    </div>
+
     <h1 class="lord-text">LORD RAHL</h1>
 
     <audio id="lionRoar" preload="auto">
         <source src="https://www.soundjay.com/animal/lion-roar-01.mp3" type="audio/mpeg">
     </audio>
+
 </div>
 
-<!-- ===== MAIN CONTENT (YOUR SITE) ===== -->
+<!-- ===== MAIN CONTENT ===== -->
 <div id="main-content">
 
     <div class="container">
         <h2>Rahlxmd Web Pairing</h2>
-        <input type="text" id="phone" placeholder="Enter phone number">
+
+        <input type="text" id="phone" placeholder="Enter phone number (254xxxxxxxxx)">
         <button onclick="generateCode()">Generate Code</button>
+
         <p id="result"></p>
     </div>
 
 </div>
 
 <script>
-    // Intro sequence timing
-    window.onload = function() {
+window.onload = function () {
 
-        const roar = document.getElementById("lionRoar");
-        const intro = document.getElementById("intro");
-        const main = document.getElementById("main-content");
+    const roar = document.getElementById("lionRoar");
+    const intro = document.getElementById("intro");
+    const main = document.getElementById("main-content");
 
-        // Play roar when text appears
+    // Play roar when text appears
+    setTimeout(() => {
+        roar.play();
+        document.body.classList.add("shake");
+    }, 4000);
+
+    // End intro after animation
+    setTimeout(() => {
+        intro.style.opacity = "0";
+        intro.style.transition = "opacity 1.5s ease";
+
         setTimeout(() => {
-            roar.play();
-            document.body.classList.add("shake");
-        }, 4500);
+            intro.style.display = "none";
+            main.style.display = "flex";
+            document.body.classList.remove("shake");
+        }, 1500);
 
-        // End intro
-        setTimeout(() => {
-            intro.style.opacity = "0";
-            intro.style.transition = "opacity 1.5s ease";
+    }, 6500);
+};
 
-            setTimeout(() => {
-                intro.style.display = "none";
-                main.style.display = "flex";
-            }, 1500);
+async function generateCode() {
+    const phone = document.getElementById("phone").value;
+    const result = document.getElementById("result");
 
-        }, 7000);
-    };
+    result.innerText = "Generating...";
 
-    // Pairing request
-    async function generateCode() {
-        const phone = document.getElementById("phone").value;
-        const result = document.getElementById("result");
+    try {
+        const res = await fetch("/pair", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone })
+        });
 
-        result.innerText = "Generating...";
+        const data = await res.json();
 
-        try {
-            const res = await fetch("/pair", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ phone })
-            });
-
-            const data = await res.json();
-
-            if (data.pairing_code) {
-                result.innerText = "Pairing Code: " + data.pairing_code;
-            } else {
-                result.innerText = "Error: " + (data.error || "Unknown error");
-            }
-
-        } catch (err) {
-            result.innerText = "Error generating code";
+        if (data.pairing_code) {
+            result.innerText = "Pairing Code: " + data.pairing_code;
+        } else {
+            result.innerText = "Error: " + (data.error || "Unknown error");
         }
+
+    } catch (err) {
+        result.innerText = "Error generating code";
     }
+}
 </script>
 
 </body>
-    </html>
+</html>
