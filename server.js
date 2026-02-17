@@ -1,28 +1,32 @@
-require("dotenv").config();
-
 const express = require("express");
 const bodyParser = require("body-parser");
 const fs = require("fs");
+const path = require("path");
 
 const pairRoute = require("./routes/pair.routes");
 
-const app = express();   
+const app = express();
 
+// Middleware
 app.use(bodyParser.json());
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "public")));
 
-
-app.use("/pair", pairRoute);
-
+// Health check route (important for Render)
 app.get("/", (req, res) => {
     res.send("🔥 Rahlxmd is running");
 });
 
+// Pairing route
+app.use("/pair", pairRoute);
 
-if (!fs.existsSync("./sessions")) {
-    fs.mkdirSync("./sessions");
+// Ensure sessions folder exists
+const sessionsPath = path.join(__dirname, "sessions");
+if (!fs.existsSync(sessionsPath)) {
+    fs.mkdirSync(sessionsPath);
+    console.log("📁 sessions folder created");
 }
 
+// Use Render's assigned port
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
