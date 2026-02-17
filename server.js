@@ -6,7 +6,6 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys"
 import P from "pino"
 import fs from "fs"
-import path from "path"
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -16,18 +15,18 @@ app.use(express.static("public"))
 
 const activeSockets = {}
 
-app.post("/generate", async (req, res) => {
+app.post("/pair", async (req, res) => {
   try {
-    let { number } = req.body
+    let { phone } = req.body
 
-    if (!number) {
-      return res.json({ status: "error", message: "Phone number required" })
+    if (!phone) {
+      return res.json({ error: "Phone number required" })
     }
 
-    // Clean number
-    number = number.replace(/\D/g, "")
+    // Clean number (remove spaces, +, etc)
+    phone = phone.replace(/\D/g, "")
 
-    const sessionPath = `./sessions/${number}`
+    const sessionPath = `./sessions/${phone}`
 
     if (!fs.existsSync("./sessions")) {
       fs.mkdirSync("./sessions")
@@ -40,45 +39,40 @@ app.post("/generate", async (req, res) => {
       version,
       auth: state,
       logger: P({ level: "silent" }),
-      browser: ["MultiUser Bot", "Chrome", "1.0.0"]
+      browser: ["Rahlxmd", "Chrome", "1.0.0"]
     })
 
-    activeSockets[number] = sock
+    activeSockets[phone] = sock
 
     sock.ev.on("creds.update", saveCreds)
 
-    sock.ev.on("connection.update", async (update) => {
+    sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect } = update
 
       if (connection === "open") {
-        console.log(`✅ ${number} connected`)
+        console.log(`✅ ${phone} connected`)
       }
 
       if (connection === "close") {
         const statusCode = lastDisconnect?.error?.output?.statusCode
-        console.log(`❌ ${number} closed:`, statusCode)
+        console.log(`❌ ${phone} closed:`, statusCode)
 
         if (statusCode !== DisconnectReason.loggedOut) {
-          delete activeSockets[number]
+          delete activeSockets[phone]
         }
       }
     })
 
-    const code = await sock.requestPairingCode(number)
+    const pairingCode = await sock.requestPairingCode(phone)
 
-    res.json({
-      status: "success",
-      code
-    })
+    return res.json({ pairingCode })
 
   } catch (err) {
-    res.json({
-      status: "error",
-      message: err.message
-    })
+    console.error(err)
+    return res.json({ error: err.message })
   }
 })
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on ${PORT}`)
+  console.log(`🚀 Server running on port ${PORT}`)
 })
