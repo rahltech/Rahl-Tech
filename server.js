@@ -5,90 +5,80 @@ import makeWASocket, {
   DisconnectReason
 } from "@whiskeysockets/baileys"
 import P from "pino"
+import fs from "fs"
+import path from "path"
 
 const app = express()
 const PORT = process.env.PORT || 3000
 
-let latestPairingCode = null
-let sock = null
+app.use(express.json())
+app.use(express.static("public"))
 
-// Home route
-app.get("/", (req, res) => {
-  res.send("WhatsApp Bot Running ✅")
-})
+const activeSockets = {}
 
-// Pair route (frontend will call this)
-app.get("/pair", (req, res) => {
-  if (!latestPairingCode) {
-    return res.json({ status: "waiting", code: null })
+app.post("/generate", async (req, res) => {
+  try {
+    let { number } = req.body
+
+    if (!number) {
+      return res.json({ status: "error", message: "Phone number required" })
+    }
+
+    // Clean number
+    number = number.replace(/\D/g, "")
+
+    const sessionPath = `./sessions/${number}`
+
+    if (!fs.existsSync("./sessions")) {
+      fs.mkdirSync("./sessions")
+    }
+
+    const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
+    const { version } = await fetchLatestBaileysVersion()
+
+    const sock = makeWASocket({
+      version,
+      auth: state,
+      logger: P({ level: "silent" }),
+      browser: ["MultiUser Bot", "Chrome", "1.0.0"]
+    })
+
+    activeSockets[number] = sock
+
+    sock.ev.on("creds.update", saveCreds)
+
+    sock.ev.on("connection.update", async (update) => {
+      const { connection, lastDisconnect } = update
+
+      if (connection === "open") {
+        console.log(`✅ ${number} connected`)
+      }
+
+      if (connection === "close") {
+        const statusCode = lastDisconnect?.error?.output?.statusCode
+        console.log(`❌ ${number} closed:`, statusCode)
+
+        if (statusCode !== DisconnectReason.loggedOut) {
+          delete activeSockets[number]
+        }
+      }
+    })
+
+    const code = await sock.requestPairingCode(number)
+
+    res.json({
+      status: "success",
+      code
+    })
+
+  } catch (err) {
+    res.json({
+      status: "error",
+      message: err.message
+    })
   }
-
-  res.json({
-    status: "ready",
-    code: latestPairingCode
-  })
 })
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`)
-  startBot()
+  console.log(`🚀 Server running on ${PORT}`)
 })
-
-async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState("session")
-  const { version } = await fetchLatestBaileysVersion()
-
-  sock = makeWASocket({
-    version,
-    auth: state,
-    logger: P({ level: "silent" }),
-    browser: ["Render Bot", "Chrome", "1.0.0"]
-  })
-
-  sock.ev.on("creds.update", saveCreds)
-
-  sock.ev.on("connection.update", async (update) => {
-    const { connection, lastDisconnect } = update
-
-    if (connection === "connecting") {
-      console.log("🔄 Connecting to WhatsApp...")
-    }
-
-    if (connection === "open") {
-      console.log("✅ Connected successfully!")
-      latestPairingCode = null
-    }
-
-    if (connection === "close") {
-      const statusCode = lastDisconnect?.error?.output?.statusCode
-      console.log("❌ Connection closed:", statusCode)
-
-      if (statusCode !== DisconnectReason.loggedOut) {
-        console.log("🔁 Reconnecting...")
-        startBot()
-      } else {
-        console.log("🚫 Logged out. Delete session folder and redeploy.")
-      }
-    }
-
-    // Request pairing correctly
-    if (connection === "connecting" && !sock.authState.creds.registered) {
-      try {
-        const phone = process.env.NUMBER
-
-        if (!phone) {
-          console.log("❌ NUMBER environment variable missing")
-          return
-        }
-
-        const code = await sock.requestPairingCode(phone)
-        latestPairingCode = code
-
-        console.log("🔑 Pairing Code:", code)
-
-      } catch (err) {
-        console.log("❌ Pairing error:", err)
-      }
-    }
-  })
-}
