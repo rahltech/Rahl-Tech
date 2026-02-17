@@ -28,22 +28,27 @@
                 Generate Code
             </button>
 
-            <p id="result" class="footer">
+            <button type="button" onclick="generateQR()" style="margin-top:10px;">
+                Generate QR
+            </button>
+
+            <div id="result" class="footer">
                 Secure • Private • Dominant
-            </p>
+            </div>
         </div>
     </div>
 
 <script>
 async function generatePairing() {
-    console.log("Button clicked");
-
     const phone = document.getElementById("phone").value;
+    const resultBox = document.getElementById("result");
 
     if (!phone) {
         alert("Enter phone number");
         return;
     }
+
+    resultBox.innerText = "Generating pairing code...";
 
     try {
         const res = await fetch("/pair", {
@@ -51,20 +56,60 @@ async function generatePairing() {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ phone })
+            body: JSON.stringify({
+                phone: phone,
+                method: "code"
+            })
         });
 
         const data = await res.json();
 
-        document.getElementById("result").innerText =
-            data.pairingCode || data.error;
+        if (data.code) {
+            resultBox.innerHTML =
+                `<div style="font-size:22px; letter-spacing:4px; margin-top:15px;">
+                    ${data.code}
+                </div>`;
+        } else {
+            resultBox.innerText = data.error || "Error generating code";
+        }
 
     } catch (err) {
         console.error(err);
-        alert("Server error");
+        resultBox.innerText = "Server error";
+    }
+}
+
+async function generateQR() {
+    const resultBox = document.getElementById("result");
+
+    resultBox.innerText = "Generating QR...";
+
+    try {
+        const res = await fetch("/pair", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                method: "qr"
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.image) {
+            resultBox.innerHTML =
+                `<img src="${data.image}" style="margin-top:15px; width:220px;" />`;
+        } else {
+            resultBox.innerText = data.error || "Error generating QR";
+        }
+
+    } catch (err) {
+        console.error(err);
+        resultBox.innerText = "Server error";
     }
 }
 </script>
 
 </body>
-    </html>
+</html>
