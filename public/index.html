@@ -3,98 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <title>Rahlxmd Web Pairing</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-<!-- ===== INTRO ===== -->
-<div id="intro">
+    <!-- Background Video -->
+    <video autoplay muted loop playsinline class="bg-video">
+        <source src="/857195-hd_1280_720_25fps.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
 
-    <div class="sky"></div>
-    <div class="ground"></div>
+    <!-- Dark Overlay -->
+    <div class="overlay"></div>
 
-    <!-- Horse SVG -->
-    <div class="rider">
-        <svg viewBox="0 0 512 512" width="180">
-            <path fill="black" d="M96 352c0-32 32-64 64-64s64 32 64 64-32 64-64 64-64-32-64-64zm256-128c-16-32-64-64-96-64-32 0-48 16-64 32l-32 32c-16 16-32 32-32 64 0 32 16 64 32 96l16 32h32l-8-40 24-16 40 56h32l-24-64 40-24 24 48h32l-16-64 24-32c16-24 16-48 0-80z"/>
-        </svg>
-    </div>
-
-    <h1 class="lord-text">LORD RAHL</h1>
-
-    <audio id="lionRoar" preload="auto">
-        <source src="https://www.soundjay.com/animal/lion-roar-01.mp3" type="audio/mpeg">
-    </audio>
-
-</div>
-
-<!-- ===== MAIN CONTENT ===== -->
-<div id="main-content">
-
+    <!-- Center Content -->
     <div class="container">
-        <h2>Rahlxmd Web Pairing</h2>
+        <div class="card">
+            <h1>RAHLXMD</h1>
+            <p class="subtitle">Secure Web Pairing</p>
 
-        <input type="text" id="phone" placeholder="Enter phone number (254xxxxxxxxx)">
-        <button onclick="generateCode()">Generate Code</button>
+            <input type="text" placeholder="Enter Phone Number" />
+            <button>Generate Code</button>
 
-        <p id="result"></p>
+            <p class="footer">Secure • Private • Dominant</p>
+        </div>
     </div>
-
-</div>
-
-<script>
-window.onload = function () {
-
-    const roar = document.getElementById("lionRoar");
-    const intro = document.getElementById("intro");
-    const main = document.getElementById("main-content");
-
-    // Play roar when text appears
-    setTimeout(() => {
-        roar.play();
-        document.body.classList.add("shake");
-    }, 4000);
-
-    // End intro after animation
-    setTimeout(() => {
-        intro.style.opacity = "0";
-        intro.style.transition = "opacity 1.5s ease";
-
-        setTimeout(() => {
-            intro.style.display = "none";
-            main.style.display = "flex";
-            document.body.classList.remove("shake");
-        }, 1500);
-
-    }, 6500);
-};
-
-async function generateCode() {
-    const phone = document.getElementById("phone").value;
-    const result = document.getElementById("result");
-
-    result.innerText = "Generating...";
-
-    try {
-        const res = await fetch("/pair", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone })
-        });
-
-        const data = await res.json();
-
-        if (data.pairing_code) {
-            result.innerText = "Pairing Code: " + data.pairing_code;
-        } else {
-            result.innerText = "Error: " + (data.error || "Unknown error");
-        }
-
-    } catch (err) {
-        result.innerText = "Error generating code";
-    }
-}
-</script>
 
 </body>
 </html>
